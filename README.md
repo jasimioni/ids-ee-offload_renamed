@@ -20,9 +20,71 @@ This is achieved while demanding the offloading of only $10$\% of network events
 
 ## Directory struct review
 
+- `models`: DNN models with Early-Exits implementation
+- `dataset`: sample dataset information for testing purposes
+- `trained_models`: pre-trained models in pytorch model
+
 ## Project Setup
 
-## Steps to build
+Create and setup a new virtual environment
 
-## Usage
+```
+python3 -mvenv venv
+source venv/bin/activate
+```
 
+Install required dependencies
+
+```
+pip install -r requirements.txt
+```
+
+## Training the early exits models
+
+```
+$ dnn/train-early-exit-network.py --help
+cuda
+usage: train-early-exit-network.py [-h] [--glob GLOB] [--batch_size BATCH_SIZE] [--epochs EPOCHS] --dataset-folder DATASET_FOLDER [--model {alexnet,mobilenet}] [--output-folder OUTPUT_FOLDER]
+
+options:
+  -h, --help            show this help message and exit
+  --glob GLOB           Glob pattern for dataset - default is 2016_01
+  --batch_size BATCH_SIZE
+                        Batch size for training - default is 1000
+  --epochs EPOCHS       Number of epochs to train for - default is 5
+  --dataset-folder DATASET_FOLDER
+                        Dataset folder to get the data from
+  --model {alexnet,mobilenet}
+                        Model to train
+  --output-folder OUTPUT_FOLDER
+                        Output folder for the model - default is "saves"
+```
+
+```
+dnn/train-early-exit-network.py --dataset-folder dataset --model mobilenet --epochs 1000 --output-folder /tmp
+dnn/train-early-exit-network.py --dataset-folder dataset --model alexnet --epochs 1000 --output-folder /tmp
+```
+
+Every epoch results will be saved in the output folder and the most suitable one can be picked.
+
+The trained models used in the paper can be downloaded running:
+
+```
+trained_models/download-trained-models.py
+```
+
+## Calibration
+
+## NSGA2 Operation Point
+
+## Performing an inference
+
+## Cloud offloading
+
+### RabbitMQ Setup
+
+### Remote Consumer Setup
+
+### Inference with offloading enabled
+
+## Evaluation Results
