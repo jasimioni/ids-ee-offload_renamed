@@ -223,11 +223,17 @@ class MobileNetV2WithExits(nn.Module):
         return results
     
     def forward_exit(self, exit, x):
+        timers = [ time.process_time()]
         for i in range(len(self.backbone)):
             x = self.backbone[i](x)
+            timers.append(time.process_time())
             if i == exit:
-                return self.exits[i](x)
-
+                output = self.exits[i](x)
+                timers.append(time.process_time())
+                if self.measurement_mode:
+                    return [ output, timers[-2] - timers[-3], timers[-1] - timers[-2] ]
+                return output
+    
     def forward(self, x):
         if self.fast_inference_mode:
             for ee_n, (bb, ee) in enumerate(zip(self.backbone, self.exits)):
