@@ -334,7 +334,11 @@ options:
 Using the values acquired from the NSGA2 sections, here is an usage sample:
 
 ```
-offload/ee-processor-client.py --mq-username remote --mq-password remote --mq-hostname 127.0.0.1 --mq-queue ee-alexnet --trained-network-file trained_models/AlexNetWithExits_calibrated.pth --network alexnet --dataset dataset/2016_01.csv --normal-exit1-min-certainty 0.913411 --attack-exit1-min-certainty 0.732164 --normal-exit2-min-certainty 0.926571 --attack-exit2-min-certainty 0.90211 --savefile results.csv
+offload/ee-processor-client.py --mq-username remote --mq-password remote --mq-hostname 127.0.0.1 \
+                               --mq-queue ee-alexnet --trained-network-file trained_models/AlexNetWithExits_calibrated.pth \
+                               --network alexnet --dataset dataset/2016_01.csv --normal-exit1-min-certainty 0.913411 \
+                               --attack-exit1-min-certainty 0.732164 --normal-exit2-min-certainty 0.926571 \
+                               --attack-exit2-min-certainty 0.90211 --savefile results.csv
 ```
 
 ```
