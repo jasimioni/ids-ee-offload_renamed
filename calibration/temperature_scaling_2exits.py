@@ -25,7 +25,7 @@ class ModelWithTemperature(nn.Module):
         self.max_iter = max_iter
         self.epochs = epochs
         
-        print(f"Created with {self.epochs} epochs and {self.max_iter} max iterations.")
+        # print(f"Created with {self.epochs} epochs and {self.max_iter} max iterations.")
         
         # Initialize the temperature parameter as a list of parameters
         

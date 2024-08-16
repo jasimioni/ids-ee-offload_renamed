@@ -13,25 +13,31 @@ import numpy
 
 
 class CustomDataset(Dataset):
-    def __init__(self, as_matrix=True, as_expanded_matrix=False, glob='200701', directory='/home/ubuntu/datasets/balanced/', file=None):
-        if file is not None:
-            print(f'Getting file {file}', file=sys.stderr)
-            files = [ file ] 
+    def __init__(self, as_matrix=True, as_expanded_matrix=False, glob='200701', 
+                 directory='/home/ubuntu/datasets/balanced/', file=None, df=None):
+        
+        if df is not None:
+            self.df_labels = df[['class']].copy()
+            self.df = df.drop(columns=['class']).copy()
         else:
-            print(f'Getting files from {directory}', file=sys.stderr)
-            files = Path(directory).glob(f'*{glob}*')
+            if file is not None:
+                print(f'Getting file {file}', file=sys.stderr)
+                files = [ file ] 
+            else:
+                print(f'Getting files from {directory}', file=sys.stderr)
+                files = Path(directory).glob(f'*{glob}*')
 
-        dfs = []
-        for file in sorted(files):
-            print("Reading: ", file, file=sys.stderr)
-            dfs.append(pd.read_csv(file))
+            dfs = []
+            for file in sorted(files):
+                print("Reading: ", file, file=sys.stderr)
+                dfs.append(pd.read_csv(file))
 
-        df = pd.concat(dfs, ignore_index=True)
+            df = pd.concat(dfs, ignore_index=True)
 
-        self.df_labels = df[['class']].copy()
-        self.df = df.drop(columns=['class']).copy()
+            self.df_labels = df[['class']].copy()
+            self.df = df.drop(columns=['class']).copy()
 
-        del df
+            del df
 
 
         if as_expanded_matrix:

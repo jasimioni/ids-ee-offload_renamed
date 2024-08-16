@@ -1,13 +1,22 @@
-# An Energy-efficient Intrusion Detection Offloading Based on
-# an Early-Exit DNN for Edge-Cloud Computing
+# An Energy-efficient Intrusion Detection Offloading Based on an Early-Exit DNN for Edge-Cloud Computing
 
+This project aims to use Early-Exits Neural Networks with remote offloading of the 
+later branches:
 
+![Protótipo](figs/prototipo.png)
 
 ## Directory struct review
 
-- `models`: DNN models with Early-Exits implementation
+- `calibration`: functions and scripts to perform Network Calibration
 - `dataset`: sample dataset information for testing purposes
+- `dnn`: scripts for training the models and perform local inference
+- `evaluations`: tools to generate evaluation data to be consumed by other steps
+- `figs`: images 
+- `models`: DNN models with Early-Exits implementation
+- `nsga2`: tools and functions to perform the multi-objective optimization
+- `offload`: MQ listener for remote and local inference
 - `trained_models`: pre-trained models in pytorch model
+- `utils`: common libraries
 
 ## Project Setup
 
@@ -182,12 +191,172 @@ Take note of *n_1*, *a_1*, *n_2*, *a_2*.
 
 ## Performing an inference
 
+`dnn/inference.py` will perform the inference. A CSV file with the 58 columns is required (the parameters)
+from the dataset. The first line is used as header. If a 59th column exists, the header must be named *class*
+and the summary of certainty and accuracy are printed
+
+```
+$ dnn/inference.py --help
+usage: inference.py [-h] --trained-model TRAINED_MODEL [--model MODEL] [--batch-size BATCH_SIZE] --dataset DATASET --savefile SAVEFILE
+
+options:
+  -h, --help            show this help message and exit
+  --trained-model TRAINED_MODEL
+                        .pth file to open
+  --model MODEL         Model to choose - [alexnet | mobilenet]
+  --batch-size BATCH_SIZE
+                        Batch size
+  --dataset DATASET     Dataset to use
+  --savefile SAVEFILE   File to save to
+```
+```
+dnn/inference.py --trained-model trained_models/AlexNetWithExits_calibrated.pth --model alexnet \
+                 --dataset dataset/2016_01.csv --savefile results.csv
+dnn/inference.py --trained-model trained_models/MobileNetV2WithExits_calibrated.pth --model mobilenet \
+                 --dataset dataset/2016_01.csv --savefile results.csv
+```
+
+```
+Created with 6 epochs and 50 max iterations.
+Exit 1: Accuracy: 0.903, Avg Certainty: 0.863
+Exit 2: Accuracy: 0.910, Avg Certainty: 0.891
+```
+
+```
+$ head results.csv 
+exit_1_certainty,exit_1_prediction,exit_2_certainty,exit_2_prediction,class
+0.8548224,1,0.936341,1,1
+0.9923475,1,0.94304967,1,1
+0.9692137,1,0.9627083,1,1
+0.9488989,0,0.99486023,0,0
+0.80656165,0,0.86406356,0,0
+0.8548224,1,0.936341,1,1
+0.80656165,0,0.86406356,0,0
+0.80656165,0,0.86406356,0,0
+0.96779186,1,0.9143728,1,1
+```
+
 ## Cloud offloading
+
+This system was created with the objective of allowing to offload all or part of the inference
+to a remote system. To achieve this, RabbitMQ is used.
 
 ### RabbitMQ Setup
 
+RabbitMQ can live anywhere, but usually it'll be installed in the remote (cloud) system
+
+[Installation Instructions](https://www.rabbitmq.com/docs/install-debian)
+
+```
+# Install the package
+apt install rabbitmq-server
+
+# Create a user named remote with password remote
+echo "remote" | rabbitmqctl add_user "remote"
+
+# Give all the permissions to this user
+rabbitmqctl set_permissions -p "/" "remote" ".*" ".*" ".*"
+```
+
+Take note of the system ip address to connect to it. Make sure security groups are allowing communication
+to this instance.
+
 ### Remote Consumer Setup
+
+```
+$ offload/ee-processor-server.py --help
+usage: ee-processor-server.py [-h] [--mq-username MQ_USERNAME] [--mq-password MQ_PASSWORD] --mq-hostname MQ_HOSTNAME [--mq-queue MQ_QUEUE] [--device DEVICE] --trained-network-file TRAINED_NETWORK_FILE
+                              --network NETWORK
+
+Early Exits processor server.
+
+options:
+  -h, --help            show this help message and exit
+  --mq-username MQ_USERNAME
+                        RabbitMQ username
+  --mq-password MQ_PASSWORD
+                        RabbitMQ password
+  --mq-hostname MQ_HOSTNAME
+                        RabbitMQ hostname
+  --mq-queue MQ_QUEUE   RabbitMQ queue
+  --device DEVICE       PyTorch device
+  --trained-network-file TRAINED_NETWORK_FILE
+                        Trainet network file
+  --network NETWORK     Network to use AlexNet | MobileNet
+```
+
+```
+offload/ee-processor-server.py --mq-username remote --mq-password remote --mq-hostname 127.0.0.1 --mq-queue ee-alexnet \
+                               --trained-network-file trained_models/AlexNetWithExits_calibrated.pth --network alexnet
+```
 
 ### Inference with offloading enabled
 
-## Evaluation Results
+The `ee-processor-client.py` can be used to perform the inference, offloading exit2 to the cloud
+if the certainty threshold is not met. 
+
+```
+$ offload/ee-processor-client.py --help
+usage: ee-processor-client.py [-h] [--mq-username MQ_USERNAME] [--mq-password MQ_PASSWORD] --mq-hostname MQ_HOSTNAME [--mq-queue MQ_QUEUE] [--device DEVICE] --trained-network-file TRAINED_NETWORK_FILE
+                              --network NETWORK --dataset DATASET [--batch-size BATCH_SIZE] [--normal-exit1-min-certainty NORMAL_EXIT1_MIN_CERTAINTY] [--attack-exit1-min-certainty ATTACK_EXIT1_MIN_CERTAINTY]
+                              [--normal-exit2-min-certainty NORMAL_EXIT2_MIN_CERTAINTY] [--attack-exit2-min-certainty ATTACK_EXIT2_MIN_CERTAINTY] [--savefile SAVEFILE] [--debug]
+
+Early Exits processor client.
+
+options:
+  -h, --help            show this help message and exit
+  --mq-username MQ_USERNAME
+                        RabbitMQ username
+  --mq-password MQ_PASSWORD
+                        RabbitMQ password
+  --mq-hostname MQ_HOSTNAME
+                        RabbitMQ hostname
+  --mq-queue MQ_QUEUE   RabbitMQ queue
+  --device DEVICE       PyTorch device
+  --trained-network-file TRAINED_NETWORK_FILE
+                        Trainet network file
+  --network NETWORK     Network to use AlexNet | MobileNet
+  --dataset DATASET     Dataset to use
+  --batch-size BATCH_SIZE
+                        Batch size
+  --normal-exit1-min-certainty NORMAL_EXIT1_MIN_CERTAINTY
+                        Minimum certainty for normal exit 1
+  --attack-exit1-min-certainty ATTACK_EXIT1_MIN_CERTAINTY
+                        Minimum certainty for attack exit 1
+  --normal-exit2-min-certainty NORMAL_EXIT2_MIN_CERTAINTY
+                        Minimum certainty for normal exit 2
+  --attack-exit2-min-certainty ATTACK_EXIT2_MIN_CERTAINTY
+                        Minimum certainty for attack exit 2
+  --savefile SAVEFILE   File to save to
+  --debug               Enable debug messages
+```
+
+Using the values acquired from the NSGA2 sections, here is an usage sample:
+
+```
+offload/ee-processor-client.py --mq-username remote --mq-password remote --mq-hostname 127.0.0.1 --mq-queue ee-alexnet --trained-network-file trained_models/AlexNetWithExits_calibrated.pth --network alexnet --dataset dataset/2016_01.csv --normal-exit1-min-certainty 0.913411 --attack-exit1-min-certainty 0.732164 --normal-exit2-min-certainty 0.926571 --attack-exit2-min-certainty 0.90211 --savefile results.csv
+```
+
+```
+[1000 rows x 7 columns]                                                                                                                                                                                            
+WARNING:  [x] Requesting 2024-08-15 23:51:18.464281 76 being offloaded                                                                                                                                            
+Rejection: 6.30%                                                                                                                                                                                                   
+Accuracy: 90.07%                                                                                                                                                                                                   
+     exit_1_prediction  exit_1_certainty exit_2_prediction exit_2_certainty final_certainty final_prediction  class                                                                                                
+0                    1          0.852611               N/A              N/A        0.852611                1      1                                                                                                
+1                    0          0.991237               N/A              N/A        0.991237                0      0                                                                                                
+2                    1          0.978399               N/A              N/A        0.978399                1      1                                                                                                
+3                    1          0.852611               N/A              N/A        0.852611                1      1
+4                    1          0.853112               N/A              N/A        0.853112                1      1
+..                 ...               ...               ...              ...             ...              ...    ...
+995                  1          0.941212               N/A              N/A        0.941212                1      1
+996                  1          0.852611               N/A              N/A        0.852611                1      1
+997                  1          0.992592               N/A              N/A        0.992592                1      1
+998                  0          0.511411                 1         0.884535        rejected         rejected      1
+999                  0          0.915787               N/A              N/A        0.915787                0      0
+
+[1000 rows x 7 columns]
+Rejection total: 5.32%
+Accuracy total: 91.13%
+Offloaded total: 6.42%
+```
